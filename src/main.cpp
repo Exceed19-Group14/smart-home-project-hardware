@@ -11,7 +11,7 @@
 #define BUTTON 27
 
 TaskHandle_t TaskA = NULL;
-
+TaskHandle_t TaskB = NULL;
 
 //const int _size = 2 * JSON_OBJECT_SIZE(20);
 //StaticJsonDocument<_size> JSONPost;
@@ -45,6 +45,22 @@ int CountGreen = 0, CountYellow = 0, CountRed = 0;
 int ModeGreen = 0, ModeYellow = 0, ModeRed = 0;
 int brightGreen = 0, brightYellow = 0, brightRed = 0;
 const String BaseUrl = "http://group14.exceed19.online/room/";
+
+void ChangeLight(){
+  if (CountGreen == 0)
+    ledcWrite(0, 0);
+  else if (CountGreen == 1)
+    ledcWrite(0, brightGreen);
+  else if (CountYellow == 0)
+    ledcWrite(0, 0);
+  else if (CountYellow == 1)
+    ledcWrite(0, brightYellow);
+  else if (CountRed == 0)
+    ledcWrite(0, 0);
+  else if (CountRed == 1)
+    ledcWrite(0, brightRed);
+}
+
 void GET_data(void *param) {
   while(1){
   DynamicJsonDocument JSONGet(2048);
@@ -52,8 +68,7 @@ void GET_data(void *param) {
   http.begin(BaseUrl);
   int httpResponseCode = http.GET();
   if (httpResponseCode >= 200 && httpResponseCode < 300) {
-    Serial.print("HTTP ");
-    Serial.println(httpResponseCode);
+    Serial.print("===================\n");
     String payload = http.getString();
     deserializeJson(JSONGet, payload);
 
@@ -67,9 +82,10 @@ void GET_data(void *param) {
     brightYellow = JSONGet[1]["brightness_level"].as<int>();
     brightRed = JSONGet[2]["brightness_level"].as<int>();
 
-    // Serial.printf("C1: %d\n", brightGreen);
-    // Serial.printf("C2: %d\n", brightYellow);
-    // Serial.printf("C3: %d\n", brightRed);
+    Serial.printf("C1: %d %d %d\n", CountGreen, ModeGreen, brightGreen);
+    Serial.printf("C2: %d %d %d\n", CountYellow, ModeYellow, brightYellow);
+    Serial.printf("C3: %d %d %d\n", CountRed, ModeRed, brightRed);
+    // ChangeLight();
     vTaskDelay(500/portTICK_PERIOD_MS);
   }
   else {
@@ -77,7 +93,7 @@ void GET_data(void *param) {
     Serial.println(httpResponseCode);
   } 
   http.end();
-  }
+}
 }
 
 void green(){
@@ -123,43 +139,44 @@ void red(){
 }
 
 void LDR_control_auto_green(){
-  if (ModeGreen == 0){
+  if (CountGreen == 0){
   check_ldr = (map(analogRead(LDR),2000,4095,0,255));
       if (check_ldr < 150) {
         ledcWrite(0, brightGreen);
-      } else {
-        ledcWrite(0, 0);
       }
   }
 }
 
 void LDR_control_auto_yellow(){
-  if (ModeYellow == 0){
+  if (CountYellow == 0){
   check_ldr = (map(analogRead(LDR),2000,4095,0,255));
       if (check_ldr < 150) {
         ledcWrite(1, brightYellow);
-      } else {
-        ledcWrite(1, 0);
       }
   }
 }
 
 void LDR_control_auto_red(){
-  if (ModeRed == 1){
+  if (CountRed == 1){
   check_ldr = (map(analogRead(LDR),2000,4095,0,255));
       if (check_ldr < 150) {
-        ledcWrite(1, brightRed);
-      } else {
-        ledcWrite(1, 0);
+        ledcWrite(0, brightRed);
+        // func force open
       }
   }
 }
 
-void LDR_control_auto(){
-  LDR_control_auto_green();
-  LDR_control_auto_yellow();
-  LDR_control_auto_red();
+void LDR_control_auto(void *param){
+  while(1){
+    if (ModeGreen == 1)
+      LDR_control_auto_green();
+    else if (ModeYellow == 1)
+      LDR_control_auto_yellow();
+    else if (ModeRed == 1)
+      LDR_control_auto_red();
 }
+}
+
 
 void setup() {
   // put your setup code here, to run once:
@@ -178,11 +195,11 @@ void setup() {
   touchAttachInterrupt(T9 , yellow , threshold );
   touchAttachInterrupt(T5 , red , threshold );
 
-  LDR_control_auto();
-  xTaskCreatePinnedToCore(GET_data, "Grow_LED", 10000, NULL, 1, &TaskA, 0);
+
+  xTaskCreatePinnedToCore(GET_data, "GET_data", 10000, NULL, 1, &TaskA, 0);
+  // xTaskCreatePinnedToCore(LDR_control_auto, "LDR_control_auto", 10000, NULL, 1, &TaskB, 1);
 
 }
 void loop() {    
-  // Serial.printf("%d %d %d\n", touchRead(T6), touchRead(T9), touchRead(T5));
-  
+
 }
